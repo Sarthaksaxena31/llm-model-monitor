@@ -35,16 +35,15 @@ export class AnthropicAdapter implements ProviderAdapter {
 
     async verifyKey(): Promise<boolean> {
         try {
-            // Use a minimal message to verify key if models endpoint doesn't exist
-            // This is consistent with the "ping" request mentioned in instructions.
-            await this.client.post('/messages', {
-                model: 'claude-3-5-sonnet-20240620',
-                max_tokens: 1,
-                messages: [{ role: 'user', content: 'ping' }]
-            });
+            // Try the models endpoint first (most reliable auth check)
+            await this.client.get('/models');
             return true;
-        } catch (error) {
-            return false;
+        } catch (error: any) {
+            // Only 401/403 mean the key is truly invalid
+            const status = error?.response?.status;
+            if (status === 401 || status === 403) return false;
+            // Any other error (404, 400, 5xx) means key exists but something else failed
+            return true;
         }
     }
 
